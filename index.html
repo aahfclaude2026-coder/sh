@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام رفع ومشاركة الشهادات</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 500px; text-align: center; }
+        h2 { color: #333; margin-bottom: 20px; }
+        input[type="file"] { display: none; }
+        .upload-btn { background-color: #4CAF50; color: white; padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; display: inline-block; margin-bottom: 15px; width: 100%; box-sizing: border-box; }
+        .action-btn { background-color: #008CBA; color: white; padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; width: 100%; margin-top: 10px; display: none; }
+        .file-list { text-align: right; margin: 15px 0; background: #eee; padding: 10px; border-radius: 6px; display: none; }
+        .result-box { margin-top: 20px; padding: 15px; background: #e7f3fe; border-left: 6px solid #2196F3; border-radius: 4px; display: none; word-break: break-all; }
+        .copy-btn { background: #2196F3; color: white; border: none; padding: 5px 10px; margin-top: 10px; border-radius: 4px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>منصة رفع الشهادات 🎓</h2>
+    
+    <label class="upload-btn">
+        اختر الشهادات (يدعم جميع الصيغ)
+        <input type="file" id="fileInput" multiple onchange="handleFiles(this.files)">
+    </label>
+
+    <div class="file-list" id="fileList"></div>
+
+    <button class="action-btn" id="generateBtn" onclick="uploadAndGenerate()">إنشاء رابط المشاركة ✨</button>
+
+    <div class="result-box" id="resultBox">
+        <p><strong>تم إنشاء الرابط بنجاح! يمكنك إرساله الآن:</strong></p>
+        <span id="shareLink"></span>
+        <br>
+        <button class="copy-btn" onclick="copyLink()">نسخ الرابط</button>
+    </div>
+</div>
+
+<script>
+    // إعدادات Supabase (تحتاج استبدالها ببيانات مشروعك الخاص)
+    const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+    const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let selectedFiles = [];
+
+    function handleFiles(files) {
+        selectedFiles = Array.from(files);
+        const listDiv = document.getElementById('fileList');
+        if(selectedFiles.length > 0) {
+            listDiv.innerHTML = "<strong>الملفات المختارة:</strong><br>" + selectedFiles.map(f => f.name).join('<br>');
+            listDiv.style.display = 'block';
+            document.getElementById('generateBtn').style.display = 'block';
+        }
+    }
+
+    async function uploadAndGenerate() {
+        const genBtn = document.getElementById('generateBtn');
+        genBtn.innerText = "جاري الرفع والإنشاء...";
+        genBtn.disabled = true;
+
+        let uploadedUrls = [];
+        const uniqueFolder = Date.now(); // لضمان عدم تداخل الملفات
+
+        for (let file of selectedFiles) {
+            const filePath = `${uniqueFolder}_${file.name}`;
+            
+            // رفع الملف إلى الـ Storage في سوبابيس (اسم الباكت هنا: certificates)
+            const { data, error } = await supabase.storage
+                .from('certificates')
+                .upload(filePath, file);
+
+            if (error) {
+                alert("حدث خطأ أثناء الرفع: " + error.message);
+                return;
+            }
+
+            // الحصول على الرابط المباشر للملف المعني
+            const { data: publicUrlData } = supabase.storage
+                .from('certificates')
+                .getPublicUrl(filePath);
+
+            uploadedUrls.push({ name: file.name, url: publicUrlData.publicUrl });
+        }
+
+        // حفظ تفاصيل المجموعة في قاعدة البيانات للحصول على ID فريد
+        const { data: insertData, error: dbError } = await supabase
+            .from('shares')
+            .insert([{ files: uploadedUrls }])
+            .select();
+
+        if (dbError) {
+            alert("خطأ في قاعدة البيانات: " + dbError.message);
+            return;
+        }
+
+        const shareId = insertData[0].id;
+        // رابط الصفحة الثانية اللي بتعرض الشهادات (تستبدلها برابط قيت هاب حقك بعدين)
+        const currentUrl = window.location.href.replace('index.html', '');
+        const finalShareLink = `${currentUrl}view.html?id=${shareId}`;
+
+        document.getElementById('shareLink').innerText = finalShareLink;
+        document.getElementById('resultBox').style.display = 'block';
+        genBtn.innerText = "تم الإنشاء!";
+    }
+
+    function copyLink() {
+        const linkText = document.getElementById('shareLink').innerText;
+        navigator.clipboard.writeText(linkText);
+        alert("تم نسخ الرابط إلى الحافظة!");
+    }
+</script>
+
+</body>
+</html>
