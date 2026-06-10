@@ -1,118 +1,263 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام رفع ومشاركة الشهادات</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 500px; text-align: center; }
-        h2 { color: #333; margin-bottom: 20px; }
-        input[type="file"] { display: none; }
-        .upload-btn { background-color: #4CAF50; color: white; padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; display: inline-block; margin-bottom: 15px; width: 100%; box-sizing: border-box; }
-        .action-btn { background-color: #008CBA; color: white; padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; width: 100%; margin-top: 10px; display: none; }
-        .file-list { text-align: right; margin: 15px 0; background: #eee; padding: 10px; border-radius: 6px; display: none; }
-        .result-box { margin-top: 20px; padding: 15px; background: #e7f3fe; border-left: 6px solid #2196F3; border-radius: 4px; display: none; word-break: break-all; }
-        .copy-btn { background: #2196F3; color: white; border: none; padding: 5px 10px; margin-top: 10px; border-radius: 4px; cursor: pointer; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>منصة رفع الشهادات</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#f3f1ea; --ink:#1e2a3a; --ink-soft:#3a4658;
+    --gold:#c8a04e; --gold-deep:#a8853a;
+    --card:#ffffff; --line:#e6e2d8; --muted:#7b8494;
+    --danger:#c0492f; --ok:#2f7d52;
+    --radius:16px; --shadow:0 10px 30px rgba(30,42,58,.10);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    font-family:'Tajawal',-apple-system,'Segoe UI',Tahoma,sans-serif;
+    background:
+      radial-gradient(1200px 500px at 100% -10%, rgba(200,160,78,.10), transparent 60%),
+      var(--paper);
+    color:var(--ink); min-height:100dvh;
+    padding:max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+    display:flex; align-items:center; justify-content:center;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .card{
+    background:var(--card); width:100%; max-width:520px;
+    border:1px solid var(--line); border-radius:var(--radius);
+    box-shadow:var(--shadow); overflow:hidden;
+  }
+  .head{
+    background:linear-gradient(180deg, var(--ink), #16202c);
+    color:#fff; padding:26px 22px; text-align:center; position:relative;
+  }
+  .head::after{content:""; position:absolute; inset-block-end:0; inset-inline:0; height:3px;
+    background:linear-gradient(90deg, transparent, var(--gold), transparent);}
+  .seal{width:54px; height:54px; margin:0 auto 10px; border-radius:50%;
+    display:grid; place-items:center; font-size:26px;
+    background:radial-gradient(circle at 30% 30%, #f0d79a, var(--gold));
+    color:#5a4413; box-shadow:0 6px 16px rgba(200,160,78,.35);}
+  .head h1{font-size:20px; font-weight:800; margin:0}
+  .head p{margin:6px 0 0; font-size:13px; color:#c8d0db; font-weight:400}
+  .body{padding:22px}
+
+  .drop{
+    border:2px dashed #d3cdbe; border-radius:14px; padding:26px 16px;
+    text-align:center; cursor:pointer; transition:.18s;
+    background:#faf9f5;
+  }
+  .drop:hover,.drop.drag{border-color:var(--gold); background:#fdfaf1}
+  .drop .ic{font-size:34px; display:block; margin-bottom:8px}
+  .drop b{display:block; font-size:16px; color:var(--ink)}
+  .drop small{color:var(--muted); font-size:12.5px}
+  input[type=file]{display:none}
+
+  .files{margin-top:16px; display:flex; flex-direction:column; gap:10px}
+  .item{
+    display:flex; align-items:center; gap:12px; padding:10px;
+    border:1px solid var(--line); border-radius:12px; background:#fff;
+  }
+  .thumb{width:46px; height:46px; flex:0 0 46px; border-radius:9px; overflow:hidden;
+    background:#eef1f5; display:grid; place-items:center; font-size:20px; color:var(--ink-soft)}
+  .thumb img{width:100%; height:100%; object-fit:cover; display:block}
+  .meta{flex:1; min-width:0; text-align:start}
+  .meta .n{font-weight:700; font-size:13.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .meta .s{font-size:11.5px; color:var(--muted)}
+  .rm{border:none; background:#f4eded; color:var(--danger); width:30px; height:30px;
+    border-radius:8px; cursor:pointer; font-size:16px; flex:0 0 30px}
+  .rm:hover{background:#f0dede}
+
+  .btn{
+    width:100%; border:none; border-radius:12px; padding:15px; cursor:pointer;
+    font-family:inherit; font-size:16px; font-weight:700; transition:.15s;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+  }
+  .btn-main{background:var(--ink); color:#fff; margin-top:16px}
+  .btn-main:hover{background:#16202c}
+  .btn-main:disabled{opacity:.6; cursor:default}
+  .btn-gold{background:var(--gold); color:#3b2e0f}
+  .btn-gold:hover{background:var(--gold-deep)}
+
+  .prog{height:7px; background:#eceae3; border-radius:99px; overflow:hidden; margin-top:14px; display:none}
+  .prog>i{display:block; height:100%; width:0; background:linear-gradient(90deg,var(--gold),var(--gold-deep)); transition:width .3s}
+  .status{font-size:13px; color:var(--muted); text-align:center; margin-top:8px; min-height:18px}
+
+  .result{margin-top:18px; padding:16px; border:1px solid var(--line);
+    border-radius:12px; background:#f7f9f7; display:none}
+  .result.show{display:block; animation:pop .25s ease}
+  @keyframes pop{from{opacity:0; transform:translateY(6px)}to{opacity:1}}
+  .result h3{margin:0 0 10px; font-size:14px; color:var(--ok)}
+  .link{display:flex; gap:8px; align-items:center; background:#fff; border:1px solid var(--line);
+    border-radius:10px; padding:10px; word-break:break-all; font-size:12.5px; color:var(--ink-soft)}
+  .link span{flex:1; text-align:start}
+  .copy{border:none; background:var(--ink); color:#fff; padding:8px 12px; border-radius:8px; cursor:pointer; font-weight:700; flex:0 0 auto}
+  .row2{display:flex; gap:8px; margin-top:10px}
+  .row2 .btn{margin:0; font-size:14px; padding:12px}
+
+  .hint{margin-top:14px; font-size:11.5px; color:var(--muted); text-align:center; line-height:1.7}
+  @media(max-width:380px){ .body{padding:18px} .head{padding:22px 18px} }
+</style>
 </head>
 <body>
-
 <div class="card">
-    <h2>منصة رفع الشهادات 🎓</h2>
-    
-    <label class="upload-btn">
-        اختر الشهادات (يدعم جميع الصيغ)
-        <input type="file" id="fileInput" multiple onchange="handleFiles(this.files)">
+  <div class="head">
+    <div class="seal">🎓</div>
+    <h1>منصة رفع الشهادات</h1>
+    <p>ارفع شهاداتك واحصل على رابط واحد لمشاركتها</p>
+  </div>
+
+  <div class="body">
+    <label class="drop" id="drop">
+      <span class="ic">📤</span>
+      <b>اختر الشهادات أو اسحبها هنا</b>
+      <small>يدعم الصور و PDF وجميع الصيغ — يمكن اختيار أكثر من ملف</small>
+      <input type="file" id="fileInput" multiple onchange="addFiles(this.files)">
     </label>
 
-    <div class="file-list" id="fileList"></div>
+    <div class="files" id="fileList"></div>
 
-    <button class="action-btn" id="generateBtn" onclick="uploadAndGenerate()">إنشاء رابط المشاركة ✨</button>
+    <button class="btn btn-main" id="generateBtn" onclick="uploadAndGenerate()" style="display:none">
+      <span>✨ إنشاء صفحة الشهادات</span>
+    </button>
 
-    <div class="result-box" id="resultBox">
-        <p><strong>تم إنشاء الرابط بنجاح! يمكنك إرساله الآن:</strong></p>
+    <div class="prog" id="prog"><i></i></div>
+    <div class="status" id="status"></div>
+
+    <div class="result" id="resultBox">
+      <h3>✅ تم إنشاء الصفحة بنجاح</h3>
+      <div class="link">
         <span id="shareLink"></span>
-        <br>
-        <button class="copy-btn" onclick="copyLink()">نسخ الرابط</button>
+        <button class="copy" onclick="copyLink()">نسخ</button>
+      </div>
+      <div class="row2">
+        <button class="btn btn-gold" onclick="openLink()">فتح الصفحة 👁️</button>
+        <button class="btn btn-main" style="margin:0;background:#eef0f3;color:var(--ink)" onclick="resetForm()">رفع جديد</button>
+      </div>
     </div>
+
+    <p class="hint">الملفات تُرفع بشكل آمن وتظهر للمستلم داخل صفحة مرتّبة.</p>
+  </div>
 </div>
 
 <script>
-    // إعدادات Supabase (تحتاج استبدالها ببيانات مشروعك الخاص)
-    const SUPABASE_URL = 'YOUR_SUPABASE_URL';
-    const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  /* ===== إعدادات Supabase — استبدلها ببيانات مشروعك ===== */
+  const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+  const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+  const BUCKET = 'certificates';   // اسم الـ Bucket في Storage (يجب أن يكون Public)
+  const TABLE  = 'shares';         // اسم الجدول (يحوي عمود files من نوع jsonb)
 
-    let selectedFiles = [];
+  // ✅ الإصلاح: لا نسمّي المتغير supabase حتى لا يتعارض مع مكتبة الـ CDN
+  const { createClient } = window.supabase;
+  const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    function handleFiles(files) {
-        selectedFiles = Array.from(files);
-        const listDiv = document.getElementById('fileList');
-        if(selectedFiles.length > 0) {
-            listDiv.innerHTML = "<strong>الملفات المختارة:</strong><br>" + selectedFiles.map(f => f.name).join('<br>');
-            listDiv.style.display = 'block';
-            document.getElementById('generateBtn').style.display = 'block';
-        }
+  let selectedFiles = [];
+  const $ = id => document.getElementById(id);
+
+  /* سحب وإفلات */
+  const drop = $('drop');
+  ['dragenter','dragover'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.add('drag')}));
+  ['dragleave','drop'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.remove('drag')}));
+  drop.addEventListener('drop',ev=>addFiles(ev.dataTransfer.files));
+
+  function fileKind(name){
+    const ext=(name.split('.').pop()||'').toLowerCase();
+    if(['jpg','jpeg','png','gif','webp','svg','bmp','avif','heic'].includes(ext)) return 'image';
+    if(ext==='pdf') return 'pdf';
+    return 'file';
+  }
+  function fmtSize(b){ if(b<1024)return b+' B'; if(b<1048576)return (b/1024).toFixed(0)+' KB'; return (b/1048576).toFixed(1)+' MB'; }
+
+  function addFiles(list){
+    for(const f of list){ if(!selectedFiles.some(x=>x.name===f.name && x.size===f.size)) selectedFiles.push(f); }
+    render();
+  }
+  function removeFile(i){ selectedFiles.splice(i,1); render(); }
+
+  function render(){
+    const box=$('fileList'); box.innerHTML='';
+    selectedFiles.forEach((f,i)=>{
+      const kind=fileKind(f.name);
+      const el=document.createElement('div'); el.className='item';
+      const icon = kind==='pdf' ? '📕' : kind==='image' ? '🖼️' : '📄';
+      el.innerHTML=`
+        <div class="thumb" data-i="${i}">${icon}</div>
+        <div class="meta">
+          <div class="n">${f.name}</div>
+          <div class="s">${fmtSize(f.size)}</div>
+        </div>
+        <button class="rm" onclick="removeFile(${i})" title="إزالة">×</button>`;
+      box.appendChild(el);
+      if(kind==='image'){
+        const r=new FileReader();
+        r.onload=e=>{ const t=el.querySelector('.thumb'); t.innerHTML=`<img src="${e.target.result}" alt="">`; };
+        r.readAsDataURL(f);
+      }
+    });
+    $('generateBtn').style.display = selectedFiles.length ? 'flex' : 'none';
+    $('resultBox').classList.remove('show');
+  }
+
+  async function uploadAndGenerate(){
+    if(!selectedFiles.length) return;
+    if(SUPABASE_URL==='YOUR_SUPABASE_URL'){ alert('فضلاً أدخل بيانات Supabase في أعلى الكود أولاً.'); return; }
+
+    const btn=$('generateBtn'); btn.disabled=true; btn.querySelector('span').innerText='جاري الرفع…';
+    $('prog').style.display='block'; const bar=$('prog').querySelector('i');
+    const folder=Date.now();
+    const uploaded=[];
+
+    try{
+      for(let i=0;i<selectedFiles.length;i++){
+        const f=selectedFiles[i];
+        $('status').innerText=`رفع ${i+1} من ${selectedFiles.length}: ${f.name}`;
+        const path=`${folder}/${f.name}`;
+        const {error}=await db.storage.from(BUCKET).upload(path,f,{upsert:true});
+        if(error) throw new Error(error.message);
+        const {data:pub}=db.storage.from(BUCKET).getPublicUrl(path);
+        uploaded.push({name:f.name,url:pub.publicUrl,kind:fileKind(f.name)});
+        bar.style.width=Math.round(((i+1)/selectedFiles.length)*100)+'%';
+      }
+
+      $('status').innerText='حفظ الصفحة…';
+      const {data:ins,error:dbErr}=await db.from(TABLE).insert([{files:uploaded}]).select();
+      if(dbErr) throw new Error(dbErr.message);
+
+      const id=ins[0].id;
+      const base=window.location.origin+window.location.pathname.replace(/[^/]*$/,'');
+      const link=`${base}view.html?id=${id}`;
+      $('shareLink').innerText=link;
+      $('shareLink').dataset.link=link;
+      $('resultBox').classList.add('show');
+      $('status').innerText='';
+      btn.querySelector('span').innerText='✅ تم الإنشاء';
+    }catch(e){
+      $('status').innerText='';
+      alert('حدث خطأ: '+e.message);
+      btn.disabled=false; btn.querySelector('span').innerText='✨ إنشاء صفحة الشهادات';
+    }finally{
+      setTimeout(()=>{$('prog').style.display='none'; bar.style.width='0'},800);
     }
+  }
 
-    async function uploadAndGenerate() {
-        const genBtn = document.getElementById('generateBtn');
-        genBtn.innerText = "جاري الرفع والإنشاء...";
-        genBtn.disabled = true;
+  async function copyLink(){
+    const link=$('shareLink').dataset.link||$('shareLink').innerText;
+    try{ await navigator.clipboard.writeText(link); toast('تم نسخ الرابط'); }
+    catch{ const r=document.createRange(); r.selectNode($('shareLink')); getSelection().removeAllRanges(); getSelection().addRange(r); document.execCommand('copy'); toast('تم نسخ الرابط'); }
+  }
+  function openLink(){ window.open($('shareLink').dataset.link,'_blank'); }
+  function resetForm(){ selectedFiles=[]; render(); $('generateBtn').disabled=false; $('generateBtn').querySelector('span').innerText='✨ إنشاء صفحة الشهادات'; $('resultBox').classList.remove('show'); }
 
-        let uploadedUrls = [];
-        const uniqueFolder = Date.now(); // لضمان عدم تداخل الملفات
-
-        for (let file of selectedFiles) {
-            const filePath = `${uniqueFolder}_${file.name}`;
-            
-            // رفع الملف إلى الـ Storage في سوبابيس (اسم الباكت هنا: certificates)
-            const { data, error } = await supabase.storage
-                .from('certificates')
-                .upload(filePath, file);
-
-            if (error) {
-                alert("حدث خطأ أثناء الرفع: " + error.message);
-                return;
-            }
-
-            // الحصول على الرابط المباشر للملف المعني
-            const { data: publicUrlData } = supabase.storage
-                .from('certificates')
-                .getPublicUrl(filePath);
-
-            uploadedUrls.push({ name: file.name, url: publicUrlData.publicUrl });
-        }
-
-        // حفظ تفاصيل المجموعة في قاعدة البيانات للحصول على ID فريد
-        const { data: insertData, error: dbError } = await supabase
-            .from('shares')
-            .insert([{ files: uploadedUrls }])
-            .select();
-
-        if (dbError) {
-            alert("خطأ في قاعدة البيانات: " + dbError.message);
-            return;
-        }
-
-        const shareId = insertData[0].id;
-        // رابط الصفحة الثانية اللي بتعرض الشهادات (تستبدلها برابط قيت هاب حقك بعدين)
-        const currentUrl = window.location.href.replace('index.html', '');
-        const finalShareLink = `${currentUrl}view.html?id=${shareId}`;
-
-        document.getElementById('shareLink').innerText = finalShareLink;
-        document.getElementById('resultBox').style.display = 'block';
-        genBtn.innerText = "تم الإنشاء!";
-    }
-
-    function copyLink() {
-        const linkText = document.getElementById('shareLink').innerText;
-        navigator.clipboard.writeText(linkText);
-        alert("تم نسخ الرابط إلى الحافظة!");
-    }
+  function toast(msg){
+    const t=document.createElement('div'); t.textContent=msg;
+    t.style.cssText='position:fixed;inset-block-end:24px;inset-inline:0;margin:auto;width:max-content;background:var(--ink);color:#fff;padding:10px 18px;border-radius:99px;font-size:13px;z-index:99;box-shadow:0 8px 20px rgba(0,0,0,.25)';
+    document.body.appendChild(t); setTimeout(()=>t.remove(),1600);
+  }
 </script>
-
 </body>
 </html>
