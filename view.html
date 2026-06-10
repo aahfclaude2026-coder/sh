@@ -1,71 +1,186 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>استعراض الشهادات</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 600px; text-align: center; }
-        h2 { color: #333; }
-        .cert-item { background: #f9f9f9; padding: 15px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; text-align: right; }
-        .cert-name { font-weight: bold; color: #555; word-break: break-all; max-width: 70%; }
-        .view-btn { background: #4CAF50; color: white; padding: 8px 15px; text-decoration: none; border-radius: 4px; font-size: 14px; }
-        .loading { font-size: 18px; color: #666; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>استعراض الشهادات</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#f3f1ea; --ink:#1e2a3a; --ink-soft:#3a4658;
+    --gold:#c8a04e; --gold-deep:#a8853a;
+    --card:#ffffff; --line:#e6e2d8; --muted:#7b8494;
+    --radius:16px; --shadow:0 10px 30px rgba(30,42,58,.10);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    font-family:'Tajawal',-apple-system,'Segoe UI',Tahoma,sans-serif;
+    background:
+      radial-gradient(1200px 500px at 100% -10%, rgba(200,160,78,.10), transparent 60%),
+      var(--paper);
+    color:var(--ink); min-height:100dvh;
+    padding:max(16px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+    -webkit-tap-highlight-color:transparent;
+  }
+  .wrap{max-width:760px; margin:0 auto}
+  .topbar{
+    background:linear-gradient(180deg, var(--ink), #16202c); color:#fff;
+    border-radius:var(--radius); padding:24px 22px; text-align:center;
+    box-shadow:var(--shadow); position:relative; overflow:hidden; margin-bottom:18px;
+  }
+  .topbar::after{content:""; position:absolute; inset-block-end:0; inset-inline:0; height:3px;
+    background:linear-gradient(90deg, transparent, var(--gold), transparent)}
+  .seal{width:50px; height:50px; margin:0 auto 10px; border-radius:50%; display:grid; place-items:center; font-size:24px;
+    background:radial-gradient(circle at 30% 30%, #f0d79a, var(--gold)); color:#5a4413; box-shadow:0 6px 16px rgba(200,160,78,.35)}
+  .topbar h1{margin:0; font-size:20px; font-weight:800}
+  .topbar p{margin:6px 0 0; font-size:13px; color:#c8d0db; font-weight:400}
+  #count{margin-top:10px; display:inline-block; font-size:12px; font-weight:700; color:#3b2e0f;
+    background:var(--gold); padding:4px 12px; border-radius:99px}
+
+  .state{background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:40px 22px; text-align:center; box-shadow:var(--shadow)}
+  .state .ic{font-size:40px}
+  .state p{color:var(--muted); margin:12px 0 0}
+  .spinner{width:34px;height:34px;border:3px solid var(--line);border-top-color:var(--gold);
+    border-radius:50%;margin:0 auto;animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  .grid{display:flex; flex-direction:column; gap:16px}
+  .cert{background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    box-shadow:var(--shadow); overflow:hidden; animation:rise .35s ease both}
+  @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1}}
+  .cert-head{display:flex; align-items:center; gap:10px; padding:14px 16px; border-bottom:1px solid var(--line)}
+  .badge{width:34px;height:34px;flex:0 0 34px;border-radius:9px;display:grid;place-items:center;font-size:17px;
+    background:#f3efe3;color:var(--gold-deep)}
+  .cert-head .t{flex:1; min-width:0}
+  .cert-head .t b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cert-head .t span{font-size:11.5px;color:var(--muted)}
+  .dl{flex:0 0 auto; text-decoration:none; background:var(--ink); color:#fff;
+    padding:8px 14px; border-radius:9px; font-size:13px; font-weight:700}
+  .dl:hover{background:#16202c}
+
+  .preview{background:#f6f5f1; display:flex; justify-content:center}
+  .preview img{width:100%; height:auto; display:block; cursor:zoom-in}
+  .preview iframe{width:100%; height:520px; border:0; display:block; background:#fff}
+  .filebox{padding:30px 16px; text-align:center; color:var(--muted)}
+  .filebox .big{font-size:40px}
+  @media(max-width:520px){ .preview iframe{height:400px} }
+
+  /* عارض الصور بملء الشاشة */
+  .lightbox{position:fixed; inset:0; background:rgba(15,20,28,.92); display:none;
+    align-items:center; justify-content:center; z-index:50; padding:16px}
+  .lightbox.show{display:flex}
+  .lightbox img{max-width:100%; max-height:92vh; border-radius:8px}
+  .lightbox .x{position:absolute; inset-block-start:14px; inset-inline-end:16px; background:#fff;
+    border:none; width:40px;height:40px;border-radius:50%;font-size:20px;cursor:pointer}
+  footer{text-align:center; color:var(--muted); font-size:12px; margin-top:20px}
+</style>
 </head>
 <body>
+<div class="wrap">
+  <div class="topbar">
+    <div class="seal">📄</div>
+    <h1>الشهادات المشتركة</h1>
+    <p>عرض كامل لجميع الملفات المرفقة</p>
+    <span id="count" style="display:none"></span>
+  </div>
 
-<div class="card">
-    <h2>الملفات والشهادات المشتركة 📄</h2>
-    <div id="loading" class="loading">جاري تحميل الملفات...</div>
-    <div id="certsContainer"></div>
+  <div id="loading" class="state">
+    <div class="spinner"></div>
+    <p>جاري تحميل الشهادات…</p>
+  </div>
+
+  <div id="grid" class="grid"></div>
+  <footer id="footer" style="display:none">تم الإنشاء عبر منصة رفع الشهادات</footer>
+</div>
+
+<div class="lightbox" id="lightbox" onclick="closeBox()">
+  <button class="x" onclick="closeBox()">×</button>
+  <img id="lbImg" src="" alt="">
 </div>
 
 <script>
-    const SUPABASE_URL = 'YOUR_SUPABASE_URL';
-    const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+  const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+  const TABLE = 'shares';
 
-    // جلب الـ ID من الرابط
-    const urlParams = new URLSearchParams(window.location.search);
-    const shareId = urlParams.get('id');
+  // ✅ نفس الإصلاح: استخدام createClient دون تسمية المتغير supabase
+  const { createClient } = window.supabase;
+  const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    async function loadCertificates() {
-        if (!shareId) {
-            document.getElementById('loading').innerText = "رابط غير صحيح أو منتهي.";
-            return;
-        }
+  const shareId = new URLSearchParams(location.search).get('id');
+  const $ = id => document.getElementById(id);
 
-        // جلب البيانات من جدول shares بـ الـ ID
-        const { data, error } = await supabase
-            .from('shares')
-            .select('files')
-            .eq('id', shareId)
-            .single();
+  function kindOf(f){
+    if(f.kind) return f.kind;
+    const ext=(f.name.split('.').pop()||'').toLowerCase();
+    if(['jpg','jpeg','png','gif','webp','svg','bmp','avif'].includes(ext)) return 'image';
+    if(ext==='pdf') return 'pdf';
+    return 'file';
+  }
 
-        document.getElementById('loading').style.display = 'none';
+  function showState(icon,msg){
+    $('loading').innerHTML=`<div class="ic">${icon}</div><p>${msg}</p>`;
+  }
 
-        if (error || !data) {
-            document.getElementById('certsContainer').innerHTML = "<p>تعذر العثور على الملفات.</p>";
-            return;
-        }
+  async function load(){
+    if(!shareId){ showState('🔗','الرابط غير صحيح أو ناقص.'); return; }
+    if(SUPABASE_URL==='YOUR_SUPABASE_URL'){ showState('⚙️','لم يتم ضبط بيانات Supabase في الكود بعد.'); return; }
 
-        const container = document.getElementById('certsContainer');
-        data.files.forEach(file => {
-            const item = document.createElement('div');
-            item.className = 'cert-item';
-            item.innerHTML = `
-                <span class="cert-name">${file.name}</span>
-                <a href="${file.url}" target="_blank" class="view-btn">عرض / تحميل</a>
-            `;
-            container.appendChild(item);
-        });
+    let data,error;
+    try{
+      ({data,error}=await db.from(TABLE).select('files').eq('id',shareId).single());
+    }catch(e){ error=e; }
+
+    if(error || !data || !data.files || !data.files.length){
+      showState('📭','تعذّر العثور على الشهادات. قد يكون الرابط منتهياً أو غير صحيح.');
+      return;
     }
 
-    loadCertificates();
-</script>
+    const files=data.files;
+    $('loading').style.display='none';
+    $('count').style.display='inline-block';
+    $('count').innerText=`${files.length} ملف`;
+    $('footer').style.display='block';
 
+    const grid=$('grid');
+    files.forEach((f,i)=>{
+      const kind=kindOf(f);
+      const badge = kind==='pdf' ? '📕' : kind==='image' ? '🖼️' : '📎';
+      const label = kind==='pdf' ? 'مستند PDF' : kind==='image' ? 'صورة' : 'ملف';
+
+      let preview;
+      if(kind==='image'){
+        preview=`<div class="preview"><img src="${f.url}" alt="${f.name}" loading="lazy" onclick="openBox('${f.url}')"></div>`;
+      }else if(kind==='pdf'){
+        preview=`<div class="preview"><iframe src="${f.url}#toolbar=1&view=FitH" loading="lazy" title="${f.name}"></iframe></div>`;
+      }else{
+        preview=`<div class="filebox"><div class="big">📎</div><div>اضغط على «تحميل» لفتح الملف</div></div>`;
+      }
+
+      const card=document.createElement('div');
+      card.className='cert';
+      card.style.animationDelay=(i*60)+'ms';
+      card.innerHTML=`
+        <div class="cert-head">
+          <div class="badge">${badge}</div>
+          <div class="t"><b>${f.name}</b><span>${label}</span></div>
+          <a class="dl" href="${f.url}" target="_blank" download>تحميل</a>
+        </div>
+        ${preview}`;
+      grid.appendChild(card);
+    });
+  }
+
+  function openBox(src){ $('lbImg').src=src; $('lightbox').classList.add('show'); }
+  function closeBox(){ $('lightbox').classList.remove('show'); }
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeBox(); });
+
+  load();
+</script>
 </body>
 </html>
