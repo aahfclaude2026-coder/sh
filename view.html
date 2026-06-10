@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>استعراض الشهادات</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 600px; text-align: center; }
+        h2 { color: #333; }
+        .cert-item { background: #f9f9f9; padding: 15px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; text-align: right; }
+        .cert-name { font-weight: bold; color: #555; word-break: break-all; max-width: 70%; }
+        .view-btn { background: #4CAF50; color: white; padding: 8px 15px; text-decoration: none; border-radius: 4px; font-size: 14px; }
+        .loading { font-size: 18px; color: #666; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>الملفات والشهادات المشتركة 📄</h2>
+    <div id="loading" class="loading">جاري تحميل الملفات...</div>
+    <div id="certsContainer"></div>
+</div>
+
+<script>
+    const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+    const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // جلب الـ ID من الرابط
+    const urlParams = new URLSearchParams(window.location.search);
+    const shareId = urlParams.get('id');
+
+    async function loadCertificates() {
+        if (!shareId) {
+            document.getElementById('loading').innerText = "رابط غير صحيح أو منتهي.";
+            return;
+        }
+
+        // جلب البيانات من جدول shares بـ الـ ID
+        const { data, error } = await supabase
+            .from('shares')
+            .select('files')
+            .eq('id', shareId)
+            .single();
+
+        document.getElementById('loading').style.display = 'none';
+
+        if (error || !data) {
+            document.getElementById('certsContainer').innerHTML = "<p>تعذر العثور على الملفات.</p>";
+            return;
+        }
+
+        const container = document.getElementById('certsContainer');
+        data.files.forEach(file => {
+            const item = document.createElement('div');
+            item.className = 'cert-item';
+            item.innerHTML = `
+                <span class="cert-name">${file.name}</span>
+                <a href="${file.url}" target="_blank" class="view-btn">عرض / تحميل</a>
+            `;
+            container.appendChild(item);
+        });
+    }
+
+    loadCertificates();
+</script>
+
+</body>
+</html>
