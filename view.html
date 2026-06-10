@@ -108,9 +108,14 @@
   const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
   const TABLE = 'shares';
 
-  // ✅ نفس الإصلاح: استخدام createClient دون تسمية المتغير supabase
-  const { createClient } = window.supabase;
-  const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  // ✅ نفس الإصلاح: تأخير إنشاء العميل وتغليفه بالأخطاء
+  let db = null;
+  function getDB(){
+    if(db) return db;
+    if(!window.supabase || !window.supabase.createClient) throw new Error('لم تُحمّل مكتبة Supabase.');
+    db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    return db;
+  }
 
   const shareId = new URLSearchParams(location.search).get('id');
   const $ = id => document.getElementById(id);
@@ -133,7 +138,8 @@
 
     let data,error;
     try{
-      ({data,error}=await db.from(TABLE).select('files').eq('id',shareId).single());
+      const client=getDB();
+      ({data,error}=await client.from(TABLE).select('files').eq('id',shareId).single());
     }catch(e){ error=e; }
 
     if(error || !data || !data.files || !data.files.length){
