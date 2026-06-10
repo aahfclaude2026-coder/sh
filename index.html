@@ -152,9 +152,20 @@
   const BUCKET = 'certificates';   // اسم الـ Bucket في Storage (يجب أن يكون Public)
   const TABLE  = 'shares';         // اسم الجدول (يحوي عمود files من نوع jsonb)
 
-  // ✅ الإصلاح: لا نسمّي المتغير supabase حتى لا يتعارض مع مكتبة الـ CDN
-  const { createClient } = window.supabase;
-  const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  // ✅ الإصلاح: لا نسمّي المتغير supabase حتى لا يتعارض مع مكتبة الـ CDN،
+  // ونؤخّر إنشاء العميل حتى لحظة الرفع حتى لا يتعطّل اختيار الملفات إن كانت البيانات ناقصة.
+  let db = null;
+  function getDB(){
+    if(db) return db;
+    if(!SUPABASE_URL || SUPABASE_URL==='YOUR_SUPABASE_URL' || !SUPABASE_ANON_KEY || SUPABASE_ANON_KEY==='YOUR_SUPABASE_ANON_KEY'){
+      throw new Error('لم تُضبط بيانات Supabase بعد. عبّئ SUPABASE_URL و SUPABASE_ANON_KEY في أعلى الكود.');
+    }
+    if(!window.supabase || !window.supabase.createClient){
+      throw new Error('لم تُحمّل مكتبة Supabase. تأكد من اتصال الإنترنت وأن سكربت الـ CDN يعمل.');
+    }
+    db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    return db;
+  }
 
   let selectedFiles = [];
   const $ = id => document.getElementById(id);
@@ -205,7 +216,9 @@
 
   async function uploadAndGenerate(){
     if(!selectedFiles.length) return;
-    if(SUPABASE_URL==='YOUR_SUPABASE_URL'){ alert('فضلاً أدخل بيانات Supabase في أعلى الكود أولاً.'); return; }
+    let client;
+    try{ client = getDB(); }
+    catch(e){ alert(e.message); return; }
 
     const btn=$('generateBtn'); btn.disabled=true; btn.querySelector('span').innerText='جاري الرفع…';
     $('prog').style.display='block'; const bar=$('prog').querySelector('i');
@@ -217,15 +230,15 @@
         const f=selectedFiles[i];
         $('status').innerText=`رفع ${i+1} من ${selectedFiles.length}: ${f.name}`;
         const path=`${folder}/${f.name}`;
-        const {error}=await db.storage.from(BUCKET).upload(path,f,{upsert:true});
+        const {error}=await client.storage.from(BUCKET).upload(path,f,{upsert:true});
         if(error) throw new Error(error.message);
-        const {data:pub}=db.storage.from(BUCKET).getPublicUrl(path);
+        const {data:pub}=client.storage.from(BUCKET).getPublicUrl(path);
         uploaded.push({name:f.name,url:pub.publicUrl,kind:fileKind(f.name)});
         bar.style.width=Math.round(((i+1)/selectedFiles.length)*100)+'%';
       }
 
       $('status').innerText='حفظ الصفحة…';
-      const {data:ins,error:dbErr}=await db.from(TABLE).insert([{files:uploaded}]).select();
+      const {data:ins,error:dbErr}=await client.from(TABLE).insert([{files:uploaded}]).select();
       if(dbErr) throw new Error(dbErr.message);
 
       const id=ins[0].id;
